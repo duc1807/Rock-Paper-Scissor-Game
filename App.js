@@ -1,6 +1,9 @@
 import { StatusBar } from 'expo-status-bar';
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Image } from 'react-native';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
+import { StyleSheet, SafeAreaView, Text, View, ScrollView, TouchableOpacity, Image, Modal, Alert } from 'react-native';
+import { FlatList } from 'react-native-gesture-handler';
+import { FontAwesome } from '@expo/vector-icons'; 
+import { useScreens } from 'react-native-screens';
 
 //Pictures
 const rock     = 'https://www.jidedelano.com/rock-paper-scissor/image/rock-icon.png';
@@ -8,69 +11,227 @@ const paper    = 'https://goodday451999.github.io/Rock-Paper-Scissors-Neo/images
 const scissors = 'https://icon-library.com/images/rock-paper-scissors-icon/rock-paper-scissors-icon-5.jpg';
 
 export default function App() {
-  const [userTool,  setUserTool]   = useState();
-  const [userText,  setUserText]   = useState('');
+  const onPress = userChoice => {
+    const [result, compChoice] = getResult(userChoice);
+
+    const newUserChoice = CHOICES.find(choice => choice.name === userChoice);
+    const newCompChoice = CHOICES.find(choice => choice.name === compChoice);
+
+    setNotice(result);
+    setUserChoice(newUserChoice);
+    setCompChoice(newCompChoice);
+  }
+
+  const ChoiceCard = ({choicePosition: position, choice : {uri, name}}) => {
+    return (
+      <View style={styles[position]}>
+        <Image source={{uri : uri}} style={styles.chosenImg}></Image>
+      </View>
+    )
+  }
+
+  const renderItem = ({item}) => (
+    <View style={styles.historyItem}>
+      <View style={styles.historyHeader}>
+        <Text>You</Text>
+        <Text>Comp</Text>
+      </View>
+      <View style={styles.historyScore}>
+        <Text style={styles.userHistory}>{item.User}</Text>
+        <Text style={styles.semicolon}>:</Text>
+        <Text style={styles.compHistory}>{item.Comp}</Text>
+      </View>
+    </View>
+  );
+
+  var [newHistory, setNewHistory] = useState([])
+
+  var HISTORY;
+
+  const [num, setNum] = useState(0)
+
+  const EndGame = (userScr, compScr) => {
+    //let latestResult = {user: userScr, comp : compScr}    
+    var rate
+    HISTORY = newHistory.reverse();    
+    HISTORY.push({id : num, User: userScr, Comp: compScr})
+    if (userScr > compScr)
+    {
+      rate = Math.floor((userWinMatchs * 100) / HISTORY.length)
+      setWinRate(rate)
+    }
+    if (userScr < compScr)
+    {
+      rate = Math.floor((compWinMatchs * 100) / HISTORY.length)
+      setLoseRate(rate)
+    }
+    setNewHistory(newHistory.reverse()); //[...historyScore,hi]
+
+    setNum(num + 1)
+  }
+
+  const CHOICES = [
+    {
+      name: 'Rock',
+      uri:  'https://www.jidedelano.com/rock-paper-scissor/image/rock-icon.png'
+    },
+    {
+      name: 'Paper',
+      uri:  'https://goodday451999.github.io/Rock-Paper-Scissors-Neo/images/paper.png'
+    },
+    {
+      name: 'Scissors',
+      uri:  'https://icon-library.com/images/rock-paper-scissors-icon/rock-paper-scissors-icon-5.jpg'
+    }
+  ];
+
+  const [winRate, setWinRate] = useState(0)
+  const [loseRate, setLoseRate] = useState(0)
+
+  const [userWinMatchs, setUserWinMatchs] = useState(0)
+  const [compWinMatchs, setCompWinMatchs] = useState(0)
+
+  const [color, setColor] = React.useState('black')
+
+  const [userChoice, setUserChoice] = useState({});
   const [userScore, setUserScore]  = useState(0);
 
-  const [compTool,  setCompTool]   = useState(); 
-  const [compText,  setCompText]   = useState('');
+  const [compChoice, setCompChoice] = useState({});
   const [compScore, setCompScore] = useState(0);
 
-  const [notice, setNotice] = useState();
+  const [notice, setNotice] = useState("Choose somethings");
+  const [modalState, setModalState] = useState(false)
 
-  const toolArr = [rock,scissors,paper];
-  const textArr = ['Rock', 'Scissors', 'Paper'];
+  // const toolArr = [rock,scissors,paper];
+  // const textArr = ['Rock', 'Scissors', 'Paper'];
+
+  const newGame = () => {
+    setCompScore(0)
+    setUserScore(0)
+  }
 
   const reset = () => {
     setCompScore(0)
     setUserScore(0)
-    setUserTool()
-    setUserText()
+
+    setUserWinMatchs(0)
+    setCompWinMatchs(0)
+
+    setUserChoice({})   
+    setCompChoice({})
     
-    setCompTool()
-    setCompText()
+    setNewHistory([])
+
     setNotice()
   }  
 
-  var getCompChoice = () => {
-    var randomNumber = Math.floor(Math.random() * 3);
-    setCompText(textArr[randomNumber])
-    setCompTool(toolArr[randomNumber])
-    play()
+  const Button = props => {
+    return (
+    <TouchableOpacity 
+      style={styles.button}
+      onPress={() => props.onPress(props.name)}>
+      <Text style={styles.textButton}>{props.name}</Text>
+    </TouchableOpacity>)
   }
 
-  const play = () => {
-    if (userText == "Rock" && compText == "Rock" 
-      || userText == "Paper" && compText == "Paper" 
-      || userText == "Scissors" && compText == "Scissors")
+  const getResult = (userChoice) => {
+    const computerChoice = CHOICES[Math.floor(Math.random() * 3)].name;
+    let res;
+
+    if (userChoice == "Rock")
     {
-      setUserScore(userScore)
-      setCompScore(compScore)
-      setNotice("Draw")
+      res = computerChoice == "Scissors" ? "Victory!" :  "Defeated!";
     }
-    else if (userText == "Rock" && compText == "Scissors" 
-            || userText == "Paper" && compText == "Rock" 
-            || userText == "Scissors" && compText == "Paper")
+    if (userChoice === 'Paper') {
+      res = computerChoice == 'Rock' ? 'Victory!' : 'Defeated!';
+    }
+    if (userChoice === 'Scissors') {
+      res = computerChoice == 'Paper' ? 'Victory!' : 'Defeated!';
+    }
+  
+    if (userChoice == computerChoice)
     {
-      setUserScore(userScore + 1)
-      setCompScore(compScore)
-      setNotice("User Win")
+      setColor('grey')
+      res = 'Draw!';
+    } 
+
+    if (res == 'Victory!' && userScore == 9) 
+    {
+      Alert.alert("You win!")
+      setUserWinMatchs(userWinMatchs + 1)
+      EndGame(userScore + 1, compScore)
+      newGame()
+      res ="Choose somethings"
+    }
+    else if (res == 'Defeated!' && compScore == 9) 
+    { 
+      Alert.alert("You lose!")
+      setCompWinMatchs(compWinMatchs + 1)
+      EndGame(userScore, compScore + 1)
+      newGame()
+      res ="Choose somethings"
+    }
+    else {
+        if(res == 'Victory!') 
+        {
+          setColor('green')
+          setUserScore(userScore + 1)
+        }
+        
+        if(res == 'Defeated!') 
+        {
+          setCompScore(compScore + 1)
+          setColor('red')
+        }
+    }
+    return [res, computerChoice];
+    
     }
 
-    else if (userText == "Rock" && compText == "Paper" 
-            || userText == "Paper" && compText == "Scissors" 
-            || userText == "Scissors" && compText == "Rock")
-    {
-    setUserScore(userScore)
-    setCompScore(compScore + 1)
-    setNotice("Computer Win")
-    }
-  }
 
   return (
     <View style={styles.container}>
+
+      <Modal 
+        transparent={true}
+        visible={modalState}
+        animated>
+        <View style={{backgroundColor: '#000000aa', flex:1}}>
+          <View style={styles.modalScr}>
+            <View style={styles.headerModal}>
+
+            <TouchableOpacity>
+              <FontAwesome 
+                onPress={() => setModalState(false)}
+                name="close" 
+                size={38} 
+                color="black"
+                style={{position:"absolute", top: -26, right: -125}} />
+            </TouchableOpacity>
+              <Text style={styles.historyText}>History</Text>
+              <Text style={styles.generalResult}>Total: {newHistory.length} - Win: {userWinMatchs} ({winRate}) - Lose: {compWinMatchs} ({loseRate})</Text>
+            </View>
+
+            <View style={styles.containerModal}>
+              <View style={styles.scrView}>
+              {/* <View style={styles.contentModal}> */}
+
+                <SafeAreaView style={styles.contentModal}>
+                  <FlatList                    
+                    data={newHistory}
+                    renderItem={renderItem}
+                    keyExtractor={item => item.id}>                   
+                  </FlatList>
+                </SafeAreaView>
+
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <View style={styles.header}>
-        <Text style={styles.noticeText}>{notice}</Text>
+        <Text style={[styles.noticeText, {color: color} ]}>{notice}</Text>
       </View>
 
       <View style={styles.content}>
@@ -80,52 +241,30 @@ export default function App() {
         </View>
 
         <View style={styles.image}>
-          <View style={styles.imageLeft}>
-            <Image source={{uri : userTool}} style={styles.chosenImg}></Image>
-          </View>
 
+          <ChoiceCard choicePosition="imageLeft" choice={userChoice}></ChoiceCard>
           <View style={styles.imageCenter}>
             <Text style={styles.score}>{userScore} : {compScore}</Text>
             <Text style={{color: "brown", fontWeight: '800', fontSize: 22}}>VS</Text>
           </View>
-
-          <View style={styles.imageRight}>
-            <Image source={{uri : compTool}} style={styles.chosenImg}></Image>
-          </View>
+          <ChoiceCard choicePosition="imageRight" choice={compChoice}></ChoiceCard>
 
         </View>
 
         <View style={styles.chosenTool}>
-            <Text style={styles.textUserTool}>{userText}</Text>
-            <Text style={styles.textCompTool}>{compText}</Text>
+            <Text style={styles.textUserTool}>{userChoice.name}</Text>
+            <Text style={styles.textCompTool}>{compChoice.name}</Text>
         </View>
-
       </View>
 
       <View style={styles.footer}>
-        <TouchableOpacity 
-          style={styles.button}
-          onPress={() => {setUserTool(rock)
-          setUserText("Rock")
-          getCompChoice()}}>
-          <Text style={styles.textButton}>Rock</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.button}
-          onPress={() => {setUserTool(paper)
-          setUserText("Paper")
-          getCompChoice()}}>
-          <Text style={styles.textButton}>Paper</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => {setUserTool(scissors)
-          setUserText("Scissors")
-          getCompChoice()}}>
-          <Text style={styles.textButton}>Scissors</Text>
-        </TouchableOpacity>
+        {CHOICES.map(choice => {
+          return (<Button 
+                    key={choice.name} 
+                    name={choice.name} 
+                    onPress={onPress}>
+                  </Button>)
+        })}
       </View>
 
       <TouchableOpacity
@@ -134,11 +273,87 @@ export default function App() {
           <Text style={styles.textReset}>Reset</Text>
         </TouchableOpacity>
 
+      <TouchableOpacity 
+        onPress={() => setModalState(true)}  
+        style={{position: "absolute" ,alignSelf: 'flex-end', bottom: 15, right: 15}}>
+        <FontAwesome name="history" size={34} color="black" />
+      </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  //Modal Screen
+  scrView: {
+    flex: 1,
+    width: 275,
+  },
+  modalScr: {
+    borderRadius: 15,
+    borderWidth: 5,
+    alignSelf: 'center',
+    marginTop: 150,
+    width: 75 + '%',
+    height: 50 + '%',
+    backgroundColor:'lightblue',
+  },
+  headerModal: {
+    flex: 0.3,
+    backgroundColor: 'blue',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  containerModal: {
+    flex: 0.7,
+    backgroundColor: 'lightgreen',
+    alignItems: 'center'
+  },
+  contentModal: {
+    marginTop: 10,
+    width: 100 + '%',
+  },
+  historyItem: {
+    height: 70,
+    width: 150,
+    backgroundColor: 'red',
+    marginVertical: 10,
+    alignSelf: "center"
+  },
+  historyHeader: {
+    flex: 0.35,
+    backgroundColor: 'white',
+    flexDirection: 'row',
+    justifyContent: 'space-around'
+  },
+  historyScore: {
+    flex: 0.65,
+    backgroundColor: 'grey',
+    flexDirection: 'row',
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  semicolon: {
+    fontWeight: "900",
+    fontSize: 20
+  },
+  userHistory: {
+    fontSize: 25,
+    marginHorizontal: 20,
+    fontWeight: "700"
+  },
+  compHistory: {
+    fontSize: 25,
+    marginHorizontal: 20,
+    fontWeight: "700"
+  },
+  historyText: {
+    fontSize: 30,
+    fontWeight: "700",
+    color: 'brown'
+  },
+
+
+  ///////////////////////
   line: {
     width: 100 + '%',
     height: 1,
